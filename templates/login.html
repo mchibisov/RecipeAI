@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <h1>Вход</h1>
+    <p class="muted">Введите email и пароль.</p>
+
+    <form id="loginForm" class="stack">
+      <input id="email" type="email" placeholder="Email" required>
+      <input id="password" type="password" placeholder="Пароль" required>
+      <button type="submit">Войти</button>
+    </form>
+
+    <p id="status" class="status"></p>
+    <p class="muted">Нет аккаунта? <a href="/register">Регистрация</a></p>
+  </main>
+
+  <script>
+    // На этой странице только одна задача: войти и перейти на страницу рецептов.
+    const form = document.getElementById("loginForm");
+    const status = document.getElementById("status");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Ошибка входа.");
+        }
+
+        window.location.href = "/recipes";
+      } catch (error) {
+        status.textContent = error.message;
+        status.className = "status error";
+      }
+    });
+  </script>
+</body>
+</html>

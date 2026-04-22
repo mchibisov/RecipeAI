@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Рецепты</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <h1>Рецепты</h1>
+      <div class="topbar-right">
+        <span id="userEmail" class="muted"></span>
+        <button id="logoutButton" class="secondary">Выйти</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <section class="card">
+        <h2>Поиск</h2>
+        <div class="row">
+          <input id="searchInput" type="text" placeholder="Например: chicken, pasta, soup">
+          <button id="searchButton">Найти</button>
+        </div>
+        <p id="searchStatus" class="status"></p>
+        <div id="searchResults" class="list"></div>
+      </section>
+
+      <section class="card">
+        <div class="row between">
+          <h2>Сохранённые рецепты</h2>
+          <button id="refreshButton" class="secondary">Обновить</button>
+        </div>
+        <p id="savedStatus" class="status"></p>
+        <div id="savedRecipes" class="list"></div>
+      </section>
+    </section>
+
+    <section class="grid">
+      <section class="card">
+        <h2>Спросить у Mistral</h2>
+        <div class="stack">
+          <select id="recipeSelect"></select>
+          <textarea id="questionInput" rows="5" placeholder="Например: как сделать этот рецепт дешевле и быстрее?"></textarea>
+          <button id="askButton">Спросить</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Ответ</h2>
+        <pre id="aiResult" class="answer">Здесь будет ответ Mistral.</pre>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    // Весь маленький фронтенд держим прямо на странице, чтобы не плодить файлы.
+    const state = { user: null, recipes: [] };
+
+    const taskLabels = {
+      simplify: "Упростить",
+      shopping_list: "Список покупок",
+      substitutions: "Замены",
+      difficulty: "Сложность",
+      student: "Для студента?"
+    };
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Ошибка сервера.");
+      }
+
+      return data;
+    }
+
+    function setStatus(id, text, type = "") {
+      const node = $(id);
+      node.textContent = text;
+      node.className = "status" + (type ? " " + type : "");
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function recipeTextBlock(text) {
+      const value = escapeHtml(String(text || "").trim());
+      return `
+        <details class="recipe-details">
+          <summary>Показать рецепт полностью</summary>
+          <div class="recipe-text">${value}</div>
+        </details>
+      `;
+    }
+
+    async function loadSession() {
+      const data = await api("/api/auth/me");
+      if (!data.user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      state.user = data.user;
+      $("userEmail").textContent = data.user.email;
+    }
+
+    function renderSearch(items) {
+      const box = $("searchResults");
+      box.innerHTML = "";
+
+      if (!items.length) {
+        box.innerHTML = "<p class='muted'>Ничего не найдено.</p>";
+        return;
+      }
+
+      for (const recipe of items) {
+        const card = document.createElement("article");
+        card.className = "recipe";
+        card.innerHTML = `
+          <img src="${recipe.image_url}" alt="${escapeHtml(recipe.title)}">
+          <div class="recipe-body">
+            <h3>${escapeHtml(recipe.title)}</h3>
+            <p class="muted">${escapeHtml(recipe.category || "")} ${recipe.area ? "• " + escapeHtml(recipe.area) : ""}</p>
+            ${recipeTextBlock(recipe.instructions)}
+            <button data-save="${recipe.meal_id}">Сохранить</button>
+          </div>
+        `;
+        box.appendChild(card);
+      }
+
+      box.querySelectorAll("[data-save]").forEach((button) => {
+        button.addEventListener("click", () => saveRecipe(button.dataset.save));
+      });
+    }
+
+    function renderSaved() {
+      const box = $("savedRecipes");
+      const select = $("recipeSelect");
+      box.innerHTML = "";
+      select.innerHTML = "";
+
+      if (!state.recipes.length) {
+        box.innerHTML = "<p class='muted'>Пока нет сохранённых рецептов.</p>";
+        select.innerHTML = "<option value=''>Сначала сохраните рецепт</option>";
+        return;
+      }
+
+      for (const recipe of state.recipes) {
+        const option = document.createElement("option");
+        option.value = recipe.id;
+        option.textContent = recipe.title;
+        select.appendChild(option);
+
+        const buttons = Object.entries(taskLabels)
+          .map(([key, label]) => `<button class="small-button" data-task="${key}" data-id="${recipe.id}">${escapeHtml(label)}</button>`)
+          .join("");
+
+        const card = document.createElement("article");
+        card.className = "recipe";
+        card.innerHTML = `
+          <img src="${recipe.image_url}" alt="${escapeHtml(recipe.title)}">
+          <div class="recipe-body">
+            <h3>${escapeHtml(recipe.title)}</h3>
+            <p class="muted">${escapeHtml(recipe.category || "")} ${recipe.area ? "• " + escapeHtml(recipe.area) : ""}</p>
+            ${recipeTextBlock(recipe.instructions)}
+            <div class="button-list">${buttons}</div>
+          </div>
+        `;
+        box.appendChild(card);
+      }
+
+      box.querySelectorAll("[data-task]").forEach((button) => {
+        button.addEventListener("click", () => runTask(button.dataset.id, button.dataset.task));
+      });
+    }
+
+    async function searchRecipes() {
+      const query = $("searchInput").value.trim();
+      if (!query) {
+        setStatus("searchStatus", "Введите запрос.", "error");
+        return;
+      }
+
+      setStatus("searchStatus", "Ищем...");
+      try {
+        const data = await api("/api/recipes/search?q=" + encodeURIComponent(query));
+        renderSearch(data.items);
+        setStatus("searchStatus", "Найдено: " + data.items.length, "success");
+      } catch (error) {
+        setStatus("searchStatus", error.message, "error");
+      }
+    }
+
+    async function saveRecipe(mealId) {
+      try {
+        await api("/api/recipes/import", {
+          method: "POST",
+          body: JSON.stringify({ meal_id: mealId })
+        });
+        setStatus("savedStatus", "Рецепт сохранён.", "success");
+        await loadSavedRecipes();
+      } catch (error) {
+        setStatus("savedStatus", error.message, "error");
+      }
+    }
+
+    async function loadSavedRecipes() {
+      try {
+        const data = await api("/api/recipes");
+        state.recipes = data.items;
+        renderSaved();
+        setStatus("savedStatus", "Сохранено: " + data.items.length);
+      } catch (error) {
+        setStatus("savedStatus", error.message, "error");
+      }
+    }
+
+    async function runTask(recipeId, task) {
+      $("aiResult").textContent = "Mistral думает...";
+      try {
+        const data = await api("/api/ai/task", {
+          method: "POST",
+          body: JSON.stringify({ recipe_id: Number(recipeId), task })
+        });
+        $("aiResult").textContent = data.answer;
+      } catch (error) {
+        $("aiResult").textContent = error.message;
+      }
+    }
+
+    async function askQuestion() {
+      const recipeId = $("recipeSelect").value;
+      const question = $("questionInput").value.trim();
+
+      if (!recipeId) {
+        $("aiResult").textContent = "Сначала сохраните и выберите рецепт.";
+        return;
+      }
+
+      if (!question) {
+        $("aiResult").textContent = "Введите вопрос.";
+        return;
+      }
+
+      $("aiResult").textContent = "Mistral думает...";
+
+      try {
+        const data = await api("/api/ai/question", {
+          method: "POST",
+          body: JSON.stringify({ recipe_id: Number(recipeId), question })
+        });
+        $("aiResult").textContent = data.answer;
+      } catch (error) {
+        $("aiResult").textContent = error.message;
+      }
+    }
+
+    async function logout() {
+      await api("/api/auth/logout", { method: "POST", body: "{}" });
+      window.location.href = "/login";
+    }
+
+    $("searchButton").addEventListener("click", searchRecipes);
+    $("refreshButton").addEventListener("click", loadSavedRecipes);
+    $("askButton").addEventListener("click", askQuestion);
+    $("logoutButton").addEventListener("click", logout);
+
+    (async () => {
+      await loadSession();
+      await loadSavedRecipes();
+    })();
+  </script>
+</body>
+</html>

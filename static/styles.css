@@ -1,0 +1,272 @@
+/* Один простой CSS-файл на весь проект. */
+
+:root {
+  --bg: #e9f2ff;
+  --bg-deep: #d9e8ff;
+  --card: rgba(255, 255, 255, 0.82);
+  --line: #c6d7f0;
+  --text: #17263f;
+  --muted: #627796;
+  --accent: #2f6edb;
+  --accent-dark: #2458b1;
+  --secondary: #6a86b8;
+  --shadow: 0 18px 40px rgba(39, 83, 153, 0.12);
+  --error: #b23b3b;
+  --success: #26734d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(92, 155, 255, 0.28) 0, transparent 28%),
+    radial-gradient(circle at bottom right, rgba(42, 108, 221, 0.18) 0, transparent 30%),
+    linear-gradient(180deg, #f6fbff 0%, var(--bg) 52%, var(--bg-deep) 100%),
+    var(--bg);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.auth-card,
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  padding: 28px;
+}
+
+.page {
+  width: min(1180px, calc(100% - 32px));
+  margin: 26px auto;
+  padding-bottom: 28px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.topbar-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.card {
+  padding: 22px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.row > input {
+  flex: 1 1 260px;
+}
+
+.between {
+  justify-content: space-between;
+  align-items: center;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+button {
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: white;
+  cursor: pointer;
+  background: var(--accent);
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 10px 20px rgba(47, 110, 219, 0.2);
+}
+
+button:hover {
+  background: var(--accent-dark);
+  transform: translateY(-1px);
+}
+
+button.secondary {
+  background: var(--secondary);
+  box-shadow: 0 10px 20px rgba(106, 134, 184, 0.18);
+}
+
+.small-button {
+  padding: 9px 11px;
+  font-size: 14px;
+}
+
+.button-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.list {
+  display: grid;
+  gap: 14px;
+}
+
+.recipe {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.recipe img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+  background: #d6e5fb;
+}
+
+.recipe-body {
+  padding: 14px;
+}
+
+.recipe-details {
+  margin: 10px 0 14px;
+}
+
+.recipe-details summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.recipe-text {
+  margin-top: 10px;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.answer {
+  min-height: 220px;
+  margin: 0;
+  white-space: pre-wrap;
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.status {
+  min-height: 22px;
+  color: var(--muted);
+}
+
+.status.error {
+  color: var(--error);
+}
+
+.status.success {
+  color: var(--success);
+}
+
+a {
+  color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .page {
+    width: calc(100% - 20px);
+    margin: 14px auto;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .row > input,
+  .row > button,
+  .between > button {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .button-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
