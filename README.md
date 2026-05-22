@@ -18,17 +18,12 @@
    ```bash
    pip install -r requirements.txt
 
-```
+   ```
 
 2. Настройте конфигурационные переменные в файле `.env` (API-ключи, строка подключения к БД).
 3. Запустите приложение:
 ```bash
 python app.py
-
-```
-
-
-
 ```
 
 ---
@@ -50,6 +45,6 @@ python app.py
    git commit -m "Prepare for deploy: update run config and add README.md"
    git push origin main
 
-```
+   ```
 
 4. Выбери **Render.com**, зарегистрируйся через GitHub и попробуй развернуть. Если на каком-то этапе хостинга вылетит ошибка в логах — скидывай её сюда, сразу разберем причину.
