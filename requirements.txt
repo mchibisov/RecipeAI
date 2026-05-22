@@ -2,3 +2,4 @@ psycopg[binary]
 Flask
 requests
 SQLAlchemy
+python-dotenv
