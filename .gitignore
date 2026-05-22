@@ -1,2 +1,9 @@
 .env
 __pycache__/
+.DS_Store
+app.db
+.venv/
+venv/
+env/
+*.pyc
+*.pyo

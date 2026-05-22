@@ -1,1 +1,4 @@
 psycopg[binary]
+Flask
+requests
+SQLAlchemy

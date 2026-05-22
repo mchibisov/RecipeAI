@@ -1,16 +1,25 @@
-/* Один простой CSS-файл на весь проект. */
+/* Один небольшой CSS-файл на весь проект.
+   Стили сгруппированы по смыслу, чтобы код было проще объяснять на защите:
+   1. переменные темы,
+   2. базовый layout,
+   3. общие карточки и формы,
+   4. карточки рецептов,
+   5. мобильная адаптация. */
 
+/* Здесь лежат основные переменные темы.
+   Если потом понадобится поменять палитру приложения,
+   обычно достаточно изменить именно эти значения. */
 :root {
   --bg: #e9f2ff;
   --bg-deep: #d9e8ff;
-  --card: rgba(255, 255, 255, 0.82);
+  --card: rgba(255, 255, 255, 0.9);
   --line: #c6d7f0;
   --text: #17263f;
   --muted: #627796;
   --accent: #2f6edb;
   --accent-dark: #2458b1;
   --secondary: #6a86b8;
-  --shadow: 0 18px 40px rgba(39, 83, 153, 0.12);
+  --shadow: 0 12px 28px rgba(39, 83, 153, 0.1);
   --error: #b23b3b;
   --success: #26734d;
 }
@@ -19,26 +28,28 @@
   box-sizing: border-box;
 }
 
+/* Страница должна уметь растягиваться на всю высоту окна браузера. */
 html,
 body {
   min-height: 100%;
 }
 
+/* Базовые стили всей страницы:
+   шрифт, основной цвет текста и простой градиентный фон.
+   Фон сделан кодом, а не картинкой, чтобы проект был легче. */
 body {
   margin: 0;
   min-height: 100vh;
   font-family: "Trebuchet MS", "Segoe UI", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(92, 155, 255, 0.28) 0, transparent 28%),
-    radial-gradient(circle at bottom right, rgba(42, 108, 221, 0.18) 0, transparent 30%),
-    linear-gradient(180deg, #f6fbff 0%, var(--bg) 52%, var(--bg-deep) 100%),
-    var(--bg);
+    linear-gradient(180deg, #f6fbff 0%, var(--bg) 50%, var(--bg-deep) 100%);
   background-repeat: no-repeat;
-  background-attachment: fixed;
   overflow-x: hidden;
 }
 
+/* Этот layout используется только на странице авторизации.
+   Grid + place-items:center — короткий и понятный способ центрировать карточку. */
 .auth-page {
   min-height: 100vh;
   display: grid;
@@ -46,26 +57,30 @@ body {
   padding: 20px;
 }
 
+/* Общий стиль карточек: используется и на auth-странице, и в основном интерфейсе. */
 .auth-card,
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 20px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
 }
 
+/* Карточка авторизации специально уже основной страницы,
+   чтобы внимание оставалось на форме. */
 .auth-card {
   width: min(420px, 100%);
   padding: 28px;
 }
 
+/* Главный контейнер страницы рецептов. */
 .page {
   width: min(1180px, calc(100% - 32px));
   margin: 26px auto;
   padding-bottom: 28px;
 }
 
+/* Верхняя панель: название страницы, email пользователя и кнопка выхода. */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -74,6 +89,7 @@ body {
   margin-bottom: 20px;
 }
 
+/* Правая часть верхней панели тоже сделана через flex. */
 .topbar-right {
   display: flex;
   gap: 12px;
@@ -81,6 +97,9 @@ body {
   flex-wrap: wrap;
 }
 
+/* Основные блоки раскладываются в адаптивную сетку.
+   auto-fit + minmax помогают колонкам естественно перестраиваться
+   на узких экранах без дополнительного JavaScript. */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -88,30 +107,36 @@ body {
   margin-bottom: 16px;
 }
 
+/* Внутренний отступ содержимого карточек. */
 .card {
-  padding: 22px;
+  padding: 20px;
 }
 
+/* Небольшой helper для вертикальных стеков элементов. */
 .stack {
   display: grid;
   gap: 12px;
 }
 
+/* Небольшой helper для горизонтальных рядов элементов. */
 .row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
+/* В строке поиска input должен занимать основную ширину. */
 .row > input {
   flex: 1 1 260px;
 }
 
+/* Класс-помощник для разнесения элементов по краям строки. */
 .between {
   justify-content: space-between;
   align-items: center;
 }
 
+/* Поля и кнопки наследуют тот же шрифт, что и основной текст страницы. */
 input,
 textarea,
 select,
@@ -119,6 +144,7 @@ button {
   font: inherit;
 }
 
+/* Общие стили для input, textarea и select. */
 input,
 textarea,
 select {
@@ -130,11 +156,13 @@ select {
   color: var(--text);
 }
 
+/* Текстовое поле можно растягивать только по вертикали. */
 textarea {
   resize: vertical;
   min-height: 140px;
 }
 
+/* Базовый стиль кнопок во всём приложении. */
 button {
   border: 0;
   border-radius: 12px;
@@ -142,43 +170,48 @@ button {
   color: white;
   cursor: pointer;
   background: var(--accent);
-  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-  box-shadow: 0 10px 20px rgba(47, 110, 219, 0.2);
+  box-shadow: 0 8px 18px rgba(47, 110, 219, 0.16);
 }
 
+/* При наведении кнопка немного меняет цвет. */
 button:hover {
   background: var(--accent-dark);
-  transform: translateY(-1px);
 }
 
+/* Вторичные кнопки имеют более мягкий синий оттенок. */
 button.secondary {
   background: var(--secondary);
   box-shadow: 0 10px 20px rgba(106, 134, 184, 0.18);
 }
 
+/* Уменьшенные кнопки используются для быстрых AI-команд у рецептов. */
 .small-button {
   padding: 9px 11px;
   font-size: 14px;
 }
 
+/* Гибкий ряд для набора быстрых кнопок. */
 .button-list {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
+/* Вертикальный список карточек. */
 .list {
   display: grid;
   gap: 14px;
 }
 
+/* Стиль карточки рецепта. */
 .recipe {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.9);
+  background: white;
 }
 
+/* Блок картинки рецепта держит стабильные пропорции. */
 .recipe img {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -187,26 +220,31 @@ button.secondary {
   background: #d6e5fb;
 }
 
+/* Внутренний отступ текстовой части карточки. */
 .recipe-body {
   padding: 14px;
 }
 
+/* Отступы вокруг раскрывающегося полного текста рецепта. */
 .recipe-details {
   margin: 10px 0 14px;
 }
 
+/* Строка summary должна визуально выглядеть кликабельной. */
 .recipe-details summary {
   cursor: pointer;
   color: var(--accent);
   font-weight: 700;
 }
 
+/* Полный текст рецепта сохраняет переносы строк для удобства чтения. */
 .recipe-text {
   margin-top: 10px;
   white-space: pre-wrap;
   line-height: 1.55;
 }
 
+/* Блок ответа AI — это оформленный <pre>, чтобы не терять переносы строк. */
 .answer {
   min-height: 220px;
   margin: 0;
@@ -214,18 +252,28 @@ button.secondary {
   padding: 14px;
   border: 1px dashed var(--line);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
+  background: white;
 }
 
+/* На auth-странице две одинаковые кнопки: режим входа и режим регистрации. */
+.auth-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Приглушённый текст для подзаголовков и второстепенных подписей. */
 .muted {
   color: var(--muted);
 }
 
+/* Строки статуса под формами и карточками. */
 .status {
   min-height: 22px;
   color: var(--muted);
 }
 
+/* Цвета ошибок и успеха помогают быстро понять результат действия. */
 .status.error {
   color: var(--error);
 }
@@ -238,6 +286,10 @@ a {
   color: var(--accent);
 }
 
+/* Мобильная адаптация:
+   ниже 760px сетка становится одноколоночной,
+   а ряды элементов переходят в вертикальный вид.
+   Так интерфейс остаётся читаемым на телефоне без лишнего JS. */
 @media (max-width: 760px) {
   .page {
     width: calc(100% - 20px);
@@ -263,10 +315,5 @@ a {
   .between > button {
     width: 100%;
     flex: 1 1 100%;
-  }
-
-  .button-list {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
   }
 }
