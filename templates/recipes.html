@@ -1,411 +1,277 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Recipes</title>
-  <link rel="stylesheet" href="/static/styles.css">
-</head>
-<body>
-  <main class="page">
-    <header class="topbar">
-      <h1>Recipes</h1>
-      <div class="topbar-right">
-        <span id="userEmail" class="muted"></span>
-        <button id="logoutButton" class="secondary">Sign Out</button>
-      </div>
-    </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RecipeAI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <h1>RecipeAI</h1>
+        <div>
+          <span id="userEmail" class="muted"></span>
+          <button id="logoutButton" class="secondary">Sign Out</button>
+        </div>
+      </header>
 
-    <section class="grid">
       <section class="card">
-        <h2>Search</h2>
+        <h2>Search Recipe</h2>
         <div class="row">
-          <input id="searchInput" type="text" placeholder="For example: chicken, pasta, soup">
+          <input id="searchInput" placeholder="chicken, pasta, soup" />
           <button id="searchButton">Search</button>
         </div>
         <p id="searchStatus" class="status"></p>
-        <div id="searchResults" class="list"></div>
+        <div id="results" class="recipes"></div>
       </section>
+    </main>
 
-      <section class="card">
-        <div class="row between">
-          <h2>Saved Recipes</h2>
-          <button id="refreshButton" class="secondary">Refresh</button>
-        </div>
-        <p id="savedStatus" class="status"></p>
-        <div id="savedRecipes" class="list"></div>
-      </section>
-    </section>
-
-    <section class="grid">
-      <section class="card">
-        <h2>Ask Mistral</h2>
+    <dialog
+      id="recipeModal"
+      class="card"
+      style="
+        width: min(900px, calc(100% - 32px));
+        max-height: 90vh;
+        overflow: auto;
+      "
+    >
+      <div class="topbar">
+        <h2 id="modalRecipeTitle"></h2>
+        <button id="closeModalButton" class="secondary" type="button">
+          Close
+        </button>
+      </div>
+      <article class="recipe">
+        <img id="modalRecipeImage" src="" alt="" />
         <div class="stack">
-          <select id="recipeSelect"></select>
-          <textarea id="questionInput" rows="5" placeholder="For example: how can I make this recipe cheaper and faster?"></textarea>
-          <button id="askButton">Ask</button>
+          <p id="modalRecipeMeta" class="muted"></p>
+          <div>
+            <h3>Ingredients</h3>
+            <ul id="modalRecipeIngredients"></ul>
+          </div>
+          <div>
+            <h3>Instructions</h3>
+            <p id="modalRecipeInstructions"></p>
+          </div>
+          <div class="stack">
+            <h3>Ask Mistral</h3>
+            <textarea
+              id="questionInput"
+              placeholder="How can I make this recipe faster?"
+            ></textarea>
+            <button id="askButton" type="button">Ask</button>
+          </div>
+          <pre id="answer">The answer will appear here.</pre>
         </div>
-      </section>
+      </article>
+    </dialog>
 
-      <section class="card">
-        <h2>Answer</h2>
-        <pre id="aiResult" class="answer">Mistral's answer will appear here.</pre>
-      </section>
-    </section>
-  </main>
+    <script>
+      // Объявление глобального массива для хранения списка рецептов, полученных от API
+      let recipes = [];
+      // Объявление переменной для хранения объекта рецепта, выбранного пользователем в данный момент
+      let currentRecipe = null;
 
-  <script>
-    // Весь фронтенд держим прямо внутри страницы специально.
-    // Так проект легче объяснять: нет сборщиков, нет отдельных JS-модулей,
-    // и вся логика страницы лежит рядом с той HTML-разметкой, которой она управляет.
-    const state = { user: null, recipes: [] };
-
-    // Это набор быстрых AI-команд для сохранённого рецепта.
-    // Мы сознательно не делаем много отдельных API-маршрутов.
-    // Каждая кнопка просто отправляет в один и тот же /api/ai уже готовый prompt.
-    const quickPrompts = [
-      { label: "Simplify", prompt: "Simplify this recipe for a beginner. Write short clear steps." },
-      { label: "Shopping List", prompt: "Create a clear shopping list for this recipe." },
-      { label: "Substitutions", prompt: "Suggest ingredient substitutions and explain them briefly." },
-      { label: "Difficulty", prompt: "Rate the difficulty from 1 to 5 and explain briefly." },
-      { label: "Student Friendly?", prompt: "Say whether this recipe is student-friendly and quick to make." }
-    ];
-
-    // $(id)
-    // Что принимает:
-    // - id: строковый id HTML-элемента.
-    // Что делает:
-    // - возвращает элемент страницы по id.
-    // Что возвращает:
-    // - DOM-элемент или null.
-    function $(id) {
-      return document.getElementById(id);
-    }
-
-    // Общая обёртка над fetch для всех запросов страницы.
-    // Она:
-    // 1. всегда отправляет JSON,
-    // 2. читает JSON-ответ,
-    // 3. превращает серверные ошибки в обычные JS-ошибки,
-    // чтобы ниже код был короче и понятнее.
-    async function api(path, options = {}) {
-      const response = await fetch(path, {
-        headers: { "Content-Type": "application/json" },
-        ...options
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || "Server error.");
+      // Функция-хелпер для быстрого поиска HTML-элементов по их уникальному атрибуту id
+      function $(id) {
+        // Возвращает объект DOM-элемента из дерева документа
+        return document.getElementById(id);
       }
 
-      return data;
-    }
-
-    // setStatus(id, text, type)
-    // Что принимает:
-    // - id: id DOM-элемента статуса,
-    // - text: какой текст показать,
-    // - type: обычный текст, "error" или "success".
-    // Что делает:
-    // - обновляет текст и CSS-класс строки статуса.
-    // Что возвращает:
-    // - ничего.
-    function setStatus(id, text, type = "") {
-      const node = $(id);
-      node.textContent = text;
-      node.className = "status" + (type ? " " + type : "");
-    }
-
-    // escapeHtml(text)
-    // Что принимает:
-    // - text: любой текст, который может прийти из API или из базы.
-    // Что делает:
-    // - заменяет опасные HTML-символы на безопасные сущности.
-    // Что возвращает:
-    // - безопасную строку, которую можно вставлять в innerHTML.
-    function escapeHtml(text) {
-      return String(text)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;");
-    }
-
-    // recipeTextBlock(text)
-    // Что принимает:
-    // - text: полная инструкция рецепта.
-    // Что делает:
-    // - оборачивает инструкцию в блок <details>, чтобы текст можно было раскрывать.
-    // Что возвращает:
-    // - HTML-строку для вставки в карточку рецепта.
-    function recipeTextBlock(text) {
-      const value = escapeHtml(String(text || "").trim());
-      return `
-        <details class="recipe-details">
-          <summary>Show full recipe</summary>
-          <div class="recipe-text">${value}</div>
-        </details>
-      `;
-    }
-
-    // loadSession()
-    // Что принимает:
-    // - ничего.
-    // Что делает:
-    // - спрашивает backend, кто сейчас авторизован,
-    // - если сессии нет, отправляет пользователя на /auth,
-    // - если сессия есть, показывает email в шапке.
-    // Что возвращает:
-    // - Promise.
-    async function loadSession() {
-      const data = await api("/api/auth/me");
-      if (!data.user) {
-        window.location.href = "/auth";
-        return;
+      // Функция экранирования HTML-символов для предотвращения XSS-атак (внедрения вредоносного JS-кода)
+      function escapeHtml(text) {
+        // Принудительное приведение входного значения к строковому типу
+        return (
+          String(text)
+            // Замена символа амперсанда на безопасную HTML-сущность &amp;
+            .replaceAll("&", "&amp;")
+            // Замена знака "меньше" (начало HTML-тега) на безопасную сущность &lt;
+            .replaceAll("<", "&lt;")
+            // Замена знака "больше" (конец HTML-тега) на безопасную сущность &gt;
+            .replaceAll(">", "&gt;")
+            // Замена двойных кавычек на безопасную сущность &quot;
+            .replaceAll('"', "&quot;")
+        );
       }
 
-      state.user = data.user;
-      $("userEmail").textContent = data.user.email;
-    }
-
-    // renderSearch(items)
-    // Что принимает:
-    // - items: массив рецептов из внешнего API.
-    // Что делает:
-    // - очищает старые результаты,
-    // - рисует новые карточки,
-    // - привязывает кнопки Save.
-    // Что возвращает:
-    // - ничего.
-    function renderSearch(items) {
-      const box = $("searchResults");
-      box.innerHTML = "";
-
-      if (!items.length) {
-        box.innerHTML = "<p class='muted'>Nothing found.</p>";
-        return;
+      // Универсальная асинхронная функция-обертка для отправки HTTP-запросов к нашему Flask API
+      async function api(path, options = {}) {
+        // Вызов fetch; деструктуризация ...options подставляет метод (POST/GET) и тело запроса (body)
+        const response = await fetch(path, {
+          // Стандартный заголовок, указывающий, что клиент обменивается с сервером данными в формате JSON
+          headers: { "Content-Type": "application/json" },
+          // Развертывание дополнительных параметров (например, method, body), переданных при вызове функции
+          ...options,
+        });
+        // Чтение тела ответа и десериализация JSON; метод .catch() вернет пустой объект {}, если JSON невалиден
+        const data = await response.json().catch(() => ({}));
+        // Если HTTP-статус ответа не входит в диапазон успешных (200-299), генерируем ошибку
+        if (!response.ok) {
+          // Создание исключения с текстом ошибки от бэкенда или дефолтным сообщением "Server error."
+          throw new Error(data.error || "Server error.");
+        }
+        // Возврат распарсенных данных в случае успешного выполнения запроса
+        return data;
       }
 
-      for (const recipe of items) {
-        const card = document.createElement("article");
-        card.className = "recipe";
-        card.innerHTML = `
-            <img src="${recipe.image_url}" alt="${escapeHtml(recipe.title)}">
-          <div class="recipe-body">
-            <h3>${escapeHtml(recipe.title)}</h3>
-            <p class="muted">${escapeHtml(recipe.category || "")} ${recipe.area ? "• " + escapeHtml(recipe.area) : ""}</p>
-            ${recipeTextBlock(recipe.instructions)}
-            <button data-save="${recipe.meal_id}">Save</button>
-          </div>
-        `;
-        box.appendChild(card);
-      }
-
-      box.querySelectorAll("[data-save]").forEach((button) => {
-        button.addEventListener("click", () => saveRecipe(button.dataset.save));
-      });
-    }
-
-    // renderSaved()
-    // Что принимает:
-    // - ничего; берёт данные из state.recipes.
-    // Что делает:
-    // - рисует список сохранённых рецептов,
-    // - заполняет select для ручного вопроса,
-    // - привязывает быстрые AI-кнопки.
-    // Что возвращает:
-    // - ничего.
-    function renderSaved() {
-      const box = $("savedRecipes");
-      const select = $("recipeSelect");
-      box.innerHTML = "";
-      select.innerHTML = "";
-
-      if (!state.recipes.length) {
-        box.innerHTML = "<p class='muted'>No saved recipes yet.</p>";
-        select.innerHTML = "<option value=''>Save a recipe first</option>";
-        return;
-      }
-
-      for (const recipe of state.recipes) {
-        const option = document.createElement("option");
-        option.value = recipe.id;
-        option.textContent = recipe.title;
-        select.appendChild(option);
-
-        const buttons = quickPrompts
-          .map((item) => `<button class="small-button" data-prompt="${escapeHtml(item.prompt)}" data-id="${recipe.id}">${escapeHtml(item.label)}</button>`)
+      // Функция отрисовки и открытия модального окна (диалога) с подробной информацией о рецепте
+      function openRecipeModal(recipe) {
+        // Сохранение переданного объекта рецепта в глобальную переменную сессии
+        currentRecipe = recipe;
+        // Запись названия блюда в заголовок модального окна
+        $("modalRecipeTitle").textContent = recipe.title;
+        // Установка ссылки на изображение в атрибут src тега img
+        $("modalRecipeImage").src = recipe.image_url;
+        // Установка альтернативного текста (атрибут alt) для изображения
+        $("modalRecipeImage").alt = recipe.title;
+        // Фильтрация (удаление пустых полей) и объединение категории и кухни через пробел в одну строку
+        $("modalRecipeMeta").textContent = [recipe.category, recipe.area]
+          .filter(Boolean)
+          .join(" ");
+        // Формирование списка ингредиентов: маппинг массива объектов в строки <li> с вызовом экранирования XSS
+        $("modalRecipeIngredients").innerHTML = recipe.ingredients
+          .map(
+            (item) =>
+              `<li>${escapeHtml([item.measure, item.name].filter(Boolean).join(" "))}</li>`,
+          )
+          // Объединение массива строк в одну сплошную HTML-строку
           .join("");
-
-        const card = document.createElement("article");
-        card.className = "recipe";
-        card.innerHTML = `
-          <img src="${recipe.image_url}" alt="${escapeHtml(recipe.title)}">
-          <div class="recipe-body">
-            <h3>${escapeHtml(recipe.title)}</h3>
-            <p class="muted">${escapeHtml(recipe.category || "")} ${recipe.area ? "• " + escapeHtml(recipe.area) : ""}</p>
-            ${recipeTextBlock(recipe.instructions)}
-            <div class="button-list">${buttons}</div>
-          </div>
-        `;
-        box.appendChild(card);
+        // Запись пошаговой инструкции приготовления в текстовый блок
+        $("modalRecipeInstructions").textContent = recipe.instructions;
+        // Очистка поля ввода вопроса к нейросети Mistral перед новым запросом
+        $("questionInput").value = "";
+        // Сброс текста ответа ИИ до дефолтного состояния
+        $("answer").textContent = "The answer will appear here.";
+        // Встроенный метод HTML5 для открытия элемента <dialog> поверх страницы в качестве модального окна
+        $("recipeModal").showModal();
       }
 
-      box.querySelectorAll("[data-prompt]").forEach((button) => {
-        button.addEventListener("click", () => askAi(button.dataset.id, button.dataset.prompt));
-      });
-    }
-
-    // searchRecipes()
-    // Что принимает:
-    // - ничего; берёт значение из поля поиска.
-    // Что делает:
-    // - валидирует пустой запрос,
-    // - вызывает backend-поиск,
-    // - рисует найденные карточки.
-    // Что возвращает:
-    // - Promise.
-    async function searchRecipes() {
-      const query = $("searchInput").value.trim();
-      if (!query) {
-        setStatus("searchStatus", "Enter a search query.", "error");
-        return;
+      // Асинхронная функция проверки авторизации и отображения email текущего пользователя
+      async function loadUser() {
+        // Запрос к эндпоинту бэкенда для получения данных текущей сессии
+        const data = await api("/api/auth/me");
+        // Если бэкенд вернул пустой объект сессии (пользователь не авторизован или cookie просрочена)
+        if (!data.user) {
+          // Принудительный клиентский редирект на страницу авторизации
+          window.location.href = "/auth";
+          // Выход из функции (прерывание дальнейшего выполнения кода)
+          return;
+        }
+        // Если пользователь авторизован, выводим его email в шапку сайта (topbar)
+        $("userEmail").textContent = data.user.email;
       }
 
-      setStatus("searchStatus", "Searching...");
-      try {
-        const data = await api("/api/recipes/search?q=" + encodeURIComponent(query));
-        renderSearch(data.items);
-        setStatus("searchStatus", "Found: " + data.items.length, "success");
-      } catch (error) {
-        setStatus("searchStatus", error.message, "error");
-      }
-    }
+      // Асинхронная функция для отправки поискового запроса рецептов на бэкенд
+      async function searchRecipes() {
+        // Получение значения строки поиска из инпута с удалением пробелов по краям (.trim())
+        const query = $("searchInput").value.trim();
+        // Если строка поиска пуста, выводим предупреждение и прерываем поиск
+        if (!query) {
+          $("searchStatus").textContent = "Enter a search query.";
+          return;
+        }
 
-    // saveRecipe(mealId)
-    // Что принимает:
-    // - mealId: id рецепта из TheMealDB.
-    // Что делает:
-    // - просит backend сохранить рецепт в локальную базу,
-    // - после этого обновляет список сохранённых рецептов.
-    // Что возвращает:
-    // - Promise.
-    async function saveRecipe(mealId) {
-      try {
-        await api("/api/recipes/import", {
-          method: "POST",
-          body: JSON.stringify({ meal_id: mealId })
+        // Визуальное уведомление пользователя о начале сетевого процесса поиска
+        $("searchStatus").textContent = "Searching...";
+        // GET-запрос к API; метод encodeURIComponent кодирует спецсимволы и пробелы для безопасной передачи в URL
+        const data = await api(
+          "/api/recipes/search?q=" + encodeURIComponent(query),
+        );
+        // Сохранение полученного от сервера массива рецептов в глобальную переменную
+        recipes = data.items;
+        // Вызов функции генерации HTML-карточек для отображения найденных блюд на экране
+        renderRecipes();
+        // Вывод финального статуса с количеством найденных элементов
+        $("searchStatus").textContent = "Found: " + recipes.length;
+      }
+
+      // Функция динамической генерации и отрисовки HTML-кода карточек рецептов на странице
+      function renderRecipes() {
+        // Полная очистка контейнера результатов от старых карточек
+        $("results").innerHTML = "";
+
+        // Цикл, последовательно обходящий каждый объект рецепта в глобальном массиве recipes
+        for (const recipe of recipes) {
+          // Вставка сгенерированного HTML-шаблона карточки в конец контейнера результатов
+          $("results").insertAdjacentHTML(
+            "beforeend",
+            `
+          <article class="recipe">
+            <img src="${recipe.image_url}" alt="${escapeHtml(recipe.title)}">
+            <div>
+              <h3>${escapeHtml(recipe.title)}</h3>
+              <p class="muted">${escapeHtml(recipe.category)} ${escapeHtml(recipe.area)}</p>
+              <button type="button" data-id="${recipe.meal_id}">Choose</button>
+            </div>
+          </article>
+        `,
+          );
+        }
+
+        // Поиск всех созданных кнопок по селектору дата-атрибута [data-id] и обход их циклом forEach
+        document.querySelectorAll("[data-id]").forEach((button) => {
+          // Навешивание слушателя клика на каждую кнопку «Choose»
+          button.addEventListener("click", (event) => {
+            // Отмена стандартного поведения браузера для безопасности
+            event.preventDefault();
+            // Поиск объекта рецепта в массиве recipes, чей id совпадает со строковым ID из дата-атрибута кнопки
+            const recipe = recipes.find(
+              (item) => item.meal_id === button.dataset.id,
+            );
+            // Если рецепт успешно найден в локальном массиве
+            if (recipe) {
+              // Вызов функции открытия модального окна и передача туда объекта рецепта
+              openRecipeModal(recipe);
+            }
+          });
         });
-        setStatus("savedStatus", "Recipe saved.", "success");
-        await loadSavedRecipes();
-      } catch (error) {
-        setStatus("savedStatus", error.message, "error");
       }
-    }
 
-    // loadSavedRecipes()
-    // Что принимает:
-    // - ничего.
-    // Что делает:
-    // - получает все локально сохранённые рецепты с backend,
-    // - кладёт их в state и перерисовывает список.
-    // Что возвращает:
-    // - Promise.
-    async function loadSavedRecipes() {
-      try {
-        const data = await api("/api/recipes");
-        state.recipes = data.items;
-        renderSaved();
-        setStatus("savedStatus", "Saved: " + data.items.length);
-      } catch (error) {
-        setStatus("savedStatus", error.message, "error");
-      }
-    }
+      // Асинхронная функция отправки контекста рецепта и вопроса пользователя в Mistral AI
+      async function askMistral() {
+        // Получение очищенного от пробелов текста вопроса из поля textarea
+        const question = $("questionInput").value.trim();
 
-    // askAi(recipeId, prompt)
-    // Что принимает:
-    // - recipeId: id сохранённого рецепта из нашей БД,
-    // - prompt: готовый текст задачи для Mistral.
-    // Что делает:
-    // - отправляет один AI-запрос на backend
-    // - и показывает ответ справа в блоке Answer.
-    // Что возвращает:
-    // - Promise.
-    async function askAi(recipeId, prompt) {
-      $("aiResult").textContent = "Mistral is thinking...";
-      try {
+        // Валидация: если рецепт не выбран или текстовое поле вопроса пустое
+        if (!currentRecipe || !question) {
+          // Вывод предупреждения в блок ответа и остановка выполнения функции
+          $("answer").textContent = "Choose a recipe and enter a question.";
+          return;
+        }
+
+        // Информирование пользователя о том, что идет процесс генерации ответа нейросетью
+        $("answer").textContent = "Mistral is thinking...";
+        // Отправка POST-запроса на бэкенд-эндпоинт /api/ai с передачей JSON-тела
         const data = await api("/api/ai", {
           method: "POST",
-          body: JSON.stringify({ recipe_id: Number(recipeId), prompt })
+          // Сериализация объекта текущего рецепта и вопроса пользователя в JSON-строку
+          body: JSON.stringify({ recipe: currentRecipe, question }),
         });
-        $("aiResult").textContent = data.answer;
-      } catch (error) {
-        $("aiResult").textContent = error.message;
-      }
-    }
-
-    // askQuestion()
-    // Что принимает:
-    // - ничего; берёт выбранный рецепт и вопрос из DOM.
-    // Что делает:
-    // - валидирует данные,
-    // - отправляет свободный вопрос в тот же /api/ai,
-    // - показывает ответ Mistral.
-    // Что возвращает:
-    // - Promise.
-    async function askQuestion() {
-      const recipeId = $("recipeSelect").value;
-      const question = $("questionInput").value.trim();
-
-      if (!recipeId) {
-        $("aiResult").textContent = "Save and choose a recipe first.";
-        return;
+        // Вывод сгенерированного ответа ИИ (из ключа 'answer') в текстовый блок на экране
+        $("answer").textContent = data.answer;
       }
 
-      if (!question) {
-        $("aiResult").textContent = "Enter a question.";
-        return;
+      // Асинхронная функция для деавторизации (выхода из аккаунта) пользователя
+      async function logout() {
+        // Отправка POST-запроса на бэкенд-маршрут логаута с пустым телом запроса
+        await api("/api/auth/logout", { method: "POST", body: "{}" });
+        // Перенаправление браузера на страницу входа/регистрации после успешного удаления сессии
+        window.location.href = "/auth";
       }
 
-      $("aiResult").textContent = "Mistral is thinking...";
-
-      try {
-        const data = await api("/api/ai", {
-          method: "POST",
-          body: JSON.stringify({ recipe_id: Number(recipeId), prompt: question })
-        });
-        $("aiResult").textContent = data.answer;
-      } catch (error) {
-        $("aiResult").textContent = error.message;
-      }
-    }
-
-    // logout()
-    // Что принимает:
-    // - ничего.
-    // Что делает:
-    // - удаляет сессию на backend,
-    // - возвращает пользователя на страницу auth.
-    // Что возвращает:
-    // - Promise.
-    async function logout() {
-      await api("/api/auth/logout", { method: "POST", body: "{}" });
-      window.location.href = "/auth";
-    }
-
-    // Привязываем кнопки интерфейса к функциям.
-    $("searchButton").addEventListener("click", searchRecipes);
-    $("refreshButton").addEventListener("click", loadSavedRecipes);
-    $("askButton").addEventListener("click", askQuestion);
-    $("logoutButton").addEventListener("click", logout);
-
-    // Стартовая инициализация страницы:
-    // сначала проверяем пользователя, потом грузим его сохранённые рецепты.
-    (async () => {
-      await loadSession();
-      await loadSavedRecipes();
-    })();
-  </script>
-</body>
+      // Привязка функции поиска рецептов к событию клика по кнопке "Search"
+      $("searchButton").addEventListener("click", searchRecipes);
+      // Привязка функции закрытия стандартного HTML-диалога к клику по кнопке "Close" в модалке
+      $("closeModalButton").addEventListener("click", () =>
+        $("recipeModal").close(),
+      );
+      // Привязка функции генерации ответа ИИ к клику по кнопке "Ask" в модальном окне
+      $("askButton").addEventListener("click", askMistral);
+      // Привязка функции выхода из системы к клику по кнопке "Sign Out" в шапке сайта
+      $("logoutButton").addEventListener("click", logout);
+      // Автоматический вызов функции проверки сессии при каждой первичной загрузке страницы
+      loadUser();
+    </script>
+  </body>
 </html>

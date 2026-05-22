@@ -1,104 +1,90 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign In</title>
-  <link rel="stylesheet" href="/static/styles.css">
-</head>
-<body class="auth-page">
-  <main class="auth-card">
-    <h1 id="title">Sign In</h1>
-    <p id="subtitle" class="muted">Enter your email and password.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RecipeAI Auth</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="auth-page">
+    <main class="auth-card">
+      <h1 id="title">Sign In</h1>
 
-    <form id="authForm" class="stack">
-      <input id="email" type="email" placeholder="Email" required>
-      <input id="password" type="password" placeholder="Password" required>
-      <button id="submitButton" type="submit">Sign In</button>
-    </form>
+      <form id="authForm" class="stack">
+        <input id="email" type="email" placeholder="Email" required />
+        <input id="password" type="password" placeholder="Password" required />
+        <button id="submitButton" type="submit">Sign In</button>
+      </form>
 
-    <p id="status" class="status"></p>
+      <p id="status" class="status"></p>
 
-    <div class="auth-switch">
-      <button id="loginMode" class="secondary" type="button">Sign In</button>
-      <button id="registerMode" class="secondary" type="button">Register</button>
-    </div>
-  </main>
+      <div class="switch">
+        <button id="loginMode" class="secondary" type="button">Sign In</button>
+        <button id="registerMode" class="secondary" type="button">
+          Register
+        </button>
+      </div>
+    </main>
 
-  <script>
-    // На странице только одна форма, но она умеет работать в двух режимах:
-    // вход и регистрация. Мы специально не делаем две разные страницы,
-    // потому что так проект остаётся короче, а логика не дублируется.
-    const state = { mode: "login" };
+    <script>
+      // Объявление изменяемой переменной (через let) для хранения текущего состояния формы ("login" или "register")
+      let mode = "login";
 
-    const title = document.getElementById("title");
-    const subtitle = document.getElementById("subtitle");
-    const submitButton = document.getElementById("submitButton");
-    const status = document.getElementById("status");
-    const form = document.getElementById("authForm");
-    const password = document.getElementById("password");
-
-    // setMode(mode)
-    // Что принимает:
-    // - mode: строка "login" или "register".
-    // Что делает:
-    // - меняет все тексты формы под нужный режим.
-    // Что возвращает:
-    // - ничего, только обновляет DOM.
-    function setMode(mode) {
-      state.mode = mode;
-      title.textContent = mode === "login" ? "Sign In" : "Register";
-      subtitle.textContent = mode === "login"
-        ? "Enter your email and password."
-        : "Create an account to save recipes.";
-      submitButton.textContent = mode === "login" ? "Sign In" : "Create Account";
-      password.placeholder = mode === "login" ? "Password" : "Password with at least 6 characters";
-      status.textContent = "";
-    }
-
-    // sendAuth(event)
-    // Что принимает:
-    // - event: стандартное событие submit из браузера.
-    // Что делает:
-    // - отменяет обычную отправку формы,
-    // - собирает email и password,
-    // - отправляет POST-запрос на /api/auth/login или /api/auth/register,
-    // - при успехе переводит пользователя на /recipes.
-    // Что возвращает:
-    // - Promise, потому что функция асинхронная.
-    async function sendAuth(event) {
-      event.preventDefault();
-
-      const email = document.getElementById("email").value.trim();
-      const body = {
-        email,
-        password: password.value
-      };
-
-      try {
-        const response = await fetch("/api/auth/" + state.mode, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || "Authentication error.");
-        }
-
-        window.location.href = "/recipes";
-      } catch (error) {
-        status.textContent = error.message;
-        status.className = "status error";
+      // Функция-хелпер, принимающая строковый ID элемента и возвращающая сам DOM-элемент с веб-страницы
+      function $(id) {
+        // Стандартный метод JS для поиска HTML-узла в документе по его уникальному атрибуту id
+        return document.getElementById(id);
       }
-    }
 
-    // Кнопки просто переключают режим, а submit отправляет данные на сервер.
-    document.getElementById("loginMode").addEventListener("click", () => setMode("login"));
-    document.getElementById("registerMode").addEventListener("click", () => setMode("register"));
-    form.addEventListener("submit", sendAuth);
-    setMode("login");
-  </script>
-</body>
+      // Функция переключения интерфейса, принимает строковый аргумент ("login" или "register")
+      function setMode(nextMode) {
+        // Обновление глобального состояния: записываем переданный режим в переменную mode
+        mode = nextMode;
+        // Тернарный оператор: если mode равен "login", ставим текст "Sign In", иначе — "Register" для заголовка
+        $("title").textContent = mode === "login" ? "Sign In" : "Register";
+        // Аналогичная тернарная проверка для динамического изменения текста на главной кнопке отправки формы
+        $("submitButton").textContent =
+          mode === "login" ? "Sign In" : "Register";
+        // Очистка текстового содержимого элемента статусных сообщений (стираем прошлые ошибки при смене режима)
+        $("status").textContent = "";
+      }
+
+      // Асинхронная функция (async позволяет использовать await) для отправки данных формы на Flask бэкенд
+      async function sendAuth(event) {
+        // Блокировка дефолтного поведения браузера, чтобы страница не перезагружалась при отправке формы
+        event.preventDefault();
+
+        // Выполнение асинхронного сетевого HTTP-запроса через fetch. Конкатенация пути: /api/auth/login или /api/auth/register
+        const response = await fetch("/api/auth/" + mode, {
+          // Указание HTTP-метода POST, так как мы передаем конфиденциальные данные в теле запроса
+          method: "POST",
+          // Передача заголовков запроса, где указываем бэкенду, что тело запроса отформатировано как JSON
+          headers: { "Content-Type": "application/json" },
+          // Сериализация: превращаем объект JavaScript с email и password в плоскую JSON-строку для передачи по сети
+          body: JSON.stringify({
+            email: $("email").value, // Извлечение текущего текстового значения из инпута email
+            password: $("password").value, // Извлечение текущего текстового значения из инпута password
+          }),
+        });
+        // Ожидание (await) и парсинг тела HTTP-ответа, десериализация JSON-строки обратно в объект JS
+        const data = await response.json();
+
+        // Проверка свойства ok объекта ответа (истинно, если HTTP-статус находится в диапазоне 200-299)
+        if (response.ok) {
+          // Перенаправление браузера пользователя на закрытый маршрут /recipes (выполняется GET-запрос страницы)
+          window.location.href = "/recipes";
+        } else {
+          // Если сервер вернул ошибку (4xx/5xx), выводим текст ошибки из JSON, либо дефолтную строку "Auth error."
+          $("status").textContent = data.error || "Auth error.";
+        }
+      }
+
+      // Назначение слушателя события: при клике на кнопку "Sign In" (под формой) вызывается setMode с аргументом "login"
+      $("loginMode").addEventListener("click", () => setMode("login"));
+      // Назначение слушателя события: при клике на кнопку "Register" вызывается setMode с аргументом "register"
+      $("registerMode").addEventListener("click", () => setMode("register"));
+      // Назначение слушателя события: при отправке формы (клик на submit или Enter) вызывается функция sendAuth
+      $("authForm").addEventListener("submit", sendAuth);
+    </script>
+  </body>
 </html>
