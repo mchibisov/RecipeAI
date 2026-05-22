@@ -3,13 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign In</title>
+  <title>RecipeAI Auth</title>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="auth-page">
   <main class="auth-card">
     <h1 id="title">Sign In</h1>
-    <p id="subtitle" class="muted">Enter your email and password.</p>
 
     <form id="authForm" class="stack">
       <input id="email" type="email" placeholder="Email" required>
@@ -19,86 +18,49 @@
 
     <p id="status" class="status"></p>
 
-    <div class="auth-switch">
+    <div class="switch">
       <button id="loginMode" class="secondary" type="button">Sign In</button>
       <button id="registerMode" class="secondary" type="button">Register</button>
     </div>
   </main>
 
   <script>
-    // На странице только одна форма, но она умеет работать в двух режимах:
-    // вход и регистрация. Мы специально не делаем две разные страницы,
-    // потому что так проект остаётся короче, а логика не дублируется.
-    const state = { mode: "login" };
+    let mode = "login";
 
-    const title = document.getElementById("title");
-    const subtitle = document.getElementById("subtitle");
-    const submitButton = document.getElementById("submitButton");
-    const status = document.getElementById("status");
-    const form = document.getElementById("authForm");
-    const password = document.getElementById("password");
-
-    // setMode(mode)
-    // Что принимает:
-    // - mode: строка "login" или "register".
-    // Что делает:
-    // - меняет все тексты формы под нужный режим.
-    // Что возвращает:
-    // - ничего, только обновляет DOM.
-    function setMode(mode) {
-      state.mode = mode;
-      title.textContent = mode === "login" ? "Sign In" : "Register";
-      subtitle.textContent = mode === "login"
-        ? "Enter your email and password."
-        : "Create an account to save recipes.";
-      submitButton.textContent = mode === "login" ? "Sign In" : "Create Account";
-      password.placeholder = mode === "login" ? "Password" : "Password with at least 6 characters";
-      status.textContent = "";
+    function $(id) {
+      return document.getElementById(id);
     }
 
-    // sendAuth(event)
-    // Что принимает:
-    // - event: стандартное событие submit из браузера.
-    // Что делает:
-    // - отменяет обычную отправку формы,
-    // - собирает email и password,
-    // - отправляет POST-запрос на /api/auth/login или /api/auth/register,
-    // - при успехе переводит пользователя на /recipes.
-    // Что возвращает:
-    // - Promise, потому что функция асинхронная.
+    function setMode(nextMode) {
+      mode = nextMode;
+      $("title").textContent = mode === "login" ? "Sign In" : "Register";
+      $("submitButton").textContent = mode === "login" ? "Sign In" : "Register";
+      $("status").textContent = "";
+    }
+
     async function sendAuth(event) {
       event.preventDefault();
 
-      const email = document.getElementById("email").value.trim();
-      const body = {
-        email,
-        password: password.value
-      };
+      const response = await fetch("/api/auth/" + mode, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: $("email").value,
+          password: $("password").value
+        })
+      });
+      const data = await response.json();
 
-      try {
-        const response = await fetch("/api/auth/" + state.mode, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || "Authentication error.");
-        }
-
+      if (response.ok) {
         window.location.href = "/recipes";
-      } catch (error) {
-        status.textContent = error.message;
-        status.className = "status error";
+      } else {
+        $("status").textContent = data.error || "Auth error.";
       }
     }
 
-    // Кнопки просто переключают режим, а submit отправляет данные на сервер.
-    document.getElementById("loginMode").addEventListener("click", () => setMode("login"));
-    document.getElementById("registerMode").addEventListener("click", () => setMode("register"));
-    form.addEventListener("submit", sendAuth);
-    setMode("login");
+    $("loginMode").addEventListener("click", () => setMode("login"));
+    $("registerMode").addEventListener("click", () => setMode("register"));
+    $("authForm").addEventListener("submit", sendAuth);
   </script>
 </body>
 </html>
